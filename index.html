@@ -150,6 +150,19 @@
         // 添加一个数组来存储所有管道的定时器ID
         var pipeIntervals = [];
 
+        // 添加速度相关变量
+        var baseSpeed = 2;
+        var maxSpeed = 6;
+        var speedIncreaseFactor = 0.2; // 每10秒增加的速度
+        
+        // 获取当前管道速度
+        function getCurrentSpeed() {
+            if (!running) return baseSpeed;
+            const timeElapsed = (Date.now() - startTime) / 1000; // 转换为秒
+            const speedIncrease = Math.min(speedIncreaseFactor * (timeElapsed / 10), maxSpeed - baseSpeed);
+            return (baseSpeed + speedIncrease) * window.gameScale;
+        }
+
         function resizeGame() {
             const gameElement = document.getElementById('game');
             const windowWidth = window.innerWidth;
@@ -242,8 +255,8 @@
                 // 移动背景让小鸟实现水平运动
                 sky.x -= 5;
                 game.style.backgroundPositionX = sky.x + 'px';
-                // 实现小鸟的上下运动
-                bird.speedY += 1;
+                // 实现小鸟的上下运动，根据缩放比例调整重力
+                bird.speedY += 0.6 * window.gameScale;
                 bird.y += bird.speedY;
                 if (bird.y < 0) {
                     gameOver();
@@ -261,7 +274,7 @@
         // 修改点击事件，只在游戏运行时响应
         document.onclick = function () {
             if (running) {
-                bird.speedY = -10 * window.gameScale;
+                bird.speedY = -8 * window.gameScale;
             }
         }
         // 修改createPipe函数，返回管道元素以便后续清除
@@ -299,7 +312,8 @@
             // 存储定时器ID以便后续清除
             var intervalId = setInterval(function() {
                 if (running) {
-                    pipe.x -= 2 * window.gameScale;
+                    // 使用getCurrentSpeed()来获取当前速度
+                    pipe.x -= getCurrentSpeed();
                     uPipe.style.left = pipe.x + 'px';
                     dPipe.style.left = pipe.x + 'px';
                     if (pipe.x < -pipeWidth) {
