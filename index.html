@@ -5,35 +5,117 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+    <meta name="screen-orientation" content="landscape">
+    <meta name="x5-orientation" content="landscape">
+    <meta name="msapplication-tap-highlight" content="no">
+    <title>Flappy Bird</title>
     <style>
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #2c3e50;
+            overflow: hidden;
+        }
+
+        /* 添加横屏提示样式 */
+        #orientation-tip {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 999;
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        @media screen and (orientation: portrait) {
+            #orientation-tip {
+                display: flex;
+            }
+            #game {
+                display: none;
+            }
         }
 
         #game {
-            width: 800px;
-            height: 600px;
-            background: url('./images/sky.png');
             position: relative;
             overflow: hidden;
+            background: url('./images/sky.png');
+            background-size: auto 100%;
         }
 
         #bird {
             width: 34px;
             height: 25px;
-            background: url('./images/birds.png') -8px -10px no-repeat;
+            background: url('./images/birds.png');
+            background-size: 108px 25px;
             position: absolute;
             top: 100px;
             left: 100px;
+            transform-origin: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: min(18px, 4vw);
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        #startBtn {
+            top: 50%;
+        }
+
+        #restartBtn {
+            top: 50%;
+            display: none;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: min(24px, 5vw);
+            color: white;
+            z-index: 10;
         }
     </style>
 </head>
 
 <body>
+    <div id="orientation-tip">
+        请将设备横屏使用
+        <br>
+        Please rotate your device to landscape mode
+    </div>
     <div id="game">
         <div id="bird"></div>
+        <button id="startBtn" class="btn">开始游戏</button>
+        <button id="restartBtn" class="btn">重新开始</button>
+        <div id="score">得分: 0</div>
     </div>
     <script>
         // 让小鸟飞起来
@@ -57,7 +139,104 @@
             y: birdEle.offsetTop
         }
         // 游戏的状态
-        var running = true;
+        var running = false;
+
+        var startBtn = document.getElementById('startBtn');
+        var restartBtn = document.getElementById('restartBtn');
+        var scoreEle = document.getElementById('score');
+        var startTime;
+        var score = 0;
+        
+        // 添加一个数组来存储所有管道的定时器ID
+        var pipeIntervals = [];
+
+        function resizeGame() {
+            const gameElement = document.getElementById('game');
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const aspectRatio = 800 / 600;
+
+            let gameWidth, gameHeight;
+
+            if (windowWidth / windowHeight > aspectRatio) {
+                gameHeight = windowHeight * 0.95;
+                gameWidth = gameHeight * aspectRatio;
+            } else {
+                gameWidth = windowWidth * 0.95;
+                gameHeight = gameWidth / aspectRatio;
+            }
+
+            // 设置游戏容器大小
+            gameElement.style.width = `${gameWidth}px`;
+            gameElement.style.height = `${gameHeight}px`;
+
+            // 计算缩放比例
+            window.gameScale = gameWidth / 800;
+
+            // 修改这部分：使用transform来缩放小鸟
+            const bird = document.getElementById('bird');
+            bird.style.transform = `scale(${window.gameScale})`;
+            // 保持原始尺寸，但通过transform进行缩放
+            bird.style.width = '34px';
+            bird.style.height = '25px';
+
+            // 更新游戏相关的尺寸
+            window.gameWidth = gameWidth;
+            window.gameHeight = gameHeight;
+        }
+
+        // 添加窗口调整大小的监听器
+        window.addEventListener('resize', resizeGame);
+        window.addEventListener('load', resizeGame);
+
+        function startGame() {
+            running = true;
+            startTime = Date.now();
+            startBtn.style.display = 'none';
+            restartBtn.style.display = 'none';
+            
+            // 清除所有管道定时器
+            pipeIntervals.forEach(intervalId => clearInterval(intervalId));
+            pipeIntervals = [];
+            
+            // 重置小鸟位置和速度
+            bird.speedY = 0;
+            bird.y = window.gameHeight * 0.3;
+            bird.x = window.gameWidth * 0.2;
+            birdEle.style.top = bird.y + 'px';
+            birdEle.style.left = bird.x + 'px';
+            
+            // 重置背景位置
+            sky.x = 0;
+            game.style.backgroundPositionX = sky.x + 'px';
+            
+            // 清除所有现有管道
+            var pipes = game.querySelectorAll('.pipe');
+            pipes.forEach(pipe => pipe.remove());
+            
+            // 重新创建管道
+            createPipe(window.gameWidth * 0.5);
+            createPipe(window.gameWidth * 0.75);
+            createPipe(window.gameWidth);
+            createPipe(window.gameWidth * 1.25);
+            
+            // 重置分数
+            score = 0;
+            updateScore();
+        }
+
+        function gameOver() {
+            running = false;
+            restartBtn.style.display = 'block';
+        }
+
+        function updateScore() {
+            if (running) {
+                score = Math.floor((Date.now() - startTime) / 1000);
+                scoreEle.textContent = '得分: ' + score;
+            }
+        }
+
         setInterval(function () {
             if (running) {
                 // 移动背景让小鸟实现水平运动
@@ -67,69 +246,93 @@
                 bird.speedY += 1;
                 bird.y += bird.speedY;
                 if (bird.y < 0) {
-                    running = false;
+                    gameOver();
                     bird.y = 0;
                 }
-                if (bird.y + birdEle.offsetHeight > 600) {
-                    running = false;
-                    bird.y = 600 - birdEle.offsetHeight;
-                    console.log(bird.y)
+                if (bird.y + (25 * window.gameScale) > window.gameHeight) {
+                    gameOver();
+                    bird.y = window.gameHeight - (25 * window.gameScale);
                 }
 
                 birdEle.style.top = bird.y + 'px';
+                updateScore();
             }
-
         }, 30)
-        // 点击文档的时候实现小鸟向上运动
+        // 修改点击事件，只在游戏运行时响应
         document.onclick = function () {
-            bird.speedY = -10;
+            if (running) {
+                bird.speedY = -10 * window.gameScale;
+            }
         }
-        // 创建管道
+        // 修改createPipe函数，返回管道元素以便后续清除
         function createPipe(position) {
             var pipe = {};
             pipe.x = position;
             pipe.uHeight = 200 + parseInt(Math.random() * 100);
             pipe.dHeight = 600 - pipe.uHeight - 200;
             pipe.dTop = pipe.uHeight + 200;
+
+            const pipeWidth = 52 * window.gameScale;
+            
             var uPipe = document.createElement('div');
-            uPipe.style.width = '52px';
-            uPipe.style.height = pipe.uHeight + 'px';
+            uPipe.className = 'pipe';
+            uPipe.style.width = pipeWidth + 'px';
+            uPipe.style.height = pipe.uHeight * window.gameScale + 'px';
             uPipe.style.background = 'url("./images/pipe2.png") no-repeat center bottom';
+            uPipe.style.backgroundSize = '100% auto';
             uPipe.style.position = 'absolute';
             uPipe.style.top = '0px';
             uPipe.style.left = pipe.x + 'px';
             game.appendChild(uPipe);
 
             var dPipe = document.createElement('div');
-            dPipe.style.width = '52px';
-            dPipe.style.height = pipe.dHeight + 'px';
-            dPipe.style.background = 'url("./images/pipe1.png") no-repeat center  top';
+            dPipe.className = 'pipe';
+            dPipe.style.width = pipeWidth + 'px';
+            dPipe.style.height = pipe.dHeight * window.gameScale + 'px';
+            dPipe.style.background = 'url("./images/pipe1.png") no-repeat center top';
+            dPipe.style.backgroundSize = '100% auto';
             dPipe.style.position = 'absolute';
-            dPipe.style.top = pipe.dTop + 'px';
+            dPipe.style.top = pipe.dTop * window.gameScale + 'px';
             dPipe.style.left = pipe.x + 'px';
             game.appendChild(dPipe);
-            // 让管道运动起来
-            setInterval(function () {
+
+            // 存储定时器ID以便后续清除
+            var intervalId = setInterval(function() {
                 if (running) {
-                    pipe.x -= 2;
+                    pipe.x -= 2 * window.gameScale;
                     uPipe.style.left = pipe.x + 'px';
                     dPipe.style.left = pipe.x + 'px';
-                    if (pipe.x < -52) {
-                        pipe.x = 800;
+                    if (pipe.x < -pipeWidth) {
+                        pipe.x = window.gameWidth;
                     }
-                    var uCheck = bird.x + 34 > pipe.x && bird.x < pipe.x + 52 && bird.y < pipe.uHeight;
-                    var dCheck = bird.x + 34 > pipe.x && bird.x < pipe.x + 52 && bird.y > pipe.uHeight + 200;
+
+                    // 调整碰撞检测，考虑transform缩放
+                    var birdRect = birdEle.getBoundingClientRect();
+                    var uPipeRect = uPipe.getBoundingClientRect();
+                    var dPipeRect = dPipe.getBoundingClientRect();
+
+                    var uCheck = birdRect.right > uPipeRect.left && 
+                                birdRect.left < uPipeRect.right && 
+                                birdRect.top < uPipeRect.bottom;
+                                
+                    var dCheck = birdRect.right > dPipeRect.left && 
+                                birdRect.left < dPipeRect.right && 
+                                birdRect.bottom > dPipeRect.top;
+
                     if (uCheck || dCheck) {
-                        running = false;
+                        gameOver();
                     }
                 }
-            }, 30)
+            }, 30);
+            
+            // 将定时器ID添加到数组中
+            pipeIntervals.push(intervalId);
         }
-        createPipe(400);
-        createPipe(600);
-        createPipe(800);
-        createPipe(1000);
+        // 移除页面加载时的管道创建
+        // 只在点击开始按钮时创建管道
 
+        startBtn.onclick = startGame;
+        restartBtn.onclick = startGame;
     </script>
 </body>
 
